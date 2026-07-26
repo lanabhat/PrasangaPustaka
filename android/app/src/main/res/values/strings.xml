@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Pratisangraha</string>
+    <string name="title_activity_main">Pratisangraha</string>
+    <string name="package_name">prasanga.prati.sangraha</string>
+    <string name="custom_url_scheme">prasanga.prati.sangraha</string>
+</resources>

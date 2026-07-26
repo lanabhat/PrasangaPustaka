@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ExternalLink, FileSpreadsheet } from 'lucide-react';
+import { ExternalLink, Search as SearchIcon } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import EntryCard from '@/components/EntryCard/EntryCard';
 import TrendChart from '@/components/TrendChart/TrendChart';
+import Carousel from '@/components/Carousel/Carousel';
 import { fetchStats } from '@/services/api';
 import type { StatsData } from '@/services/api';
 
@@ -28,11 +29,6 @@ const PROJECT_LINKS = [
   { title: 'ಯಕ್ಷಪುಸ್ತಕಯಾದಿ', url: 'http://yakshapusthakayaadi.yakshavahini.com/' },
 ];
 
-const INDEX_LINKS = [
-  { title: 'ಪ್ರಸಂಗಪ್ರತಿಸಂಗ್ರಹ (ಕೋಷ್ಟಕ)', url: 'https://drive.google.com/open?id=1W8dZG9xmlAAn7TwsyTWUFIMTa-hdw4kW' },
-  { title: 'ಯಕ್ಷಪ್ರಸಂಗಯಾದಿ (ಪ್ರಸಂಗ ಪ್ರಕಾರ)', url: 'https://drive.google.com/file/d/1yqr3M8ItXiPGMA512A_gYVEKMal6GeMG/view' },
-  { title: 'ಯಕ್ಷಪ್ರಸಂಗಯಾದಿ (ಕವಿ ಪ್ರಕಾರ)', url: 'https://drive.google.com/file/d/1hK-0ki4DsHlDhkXr88o_hI8BoVA3iADE/view' },
-];
 
 function stripHtml(html: string) {
   return html.replace(/<[^>]*>/g, '').trim();
@@ -56,7 +52,7 @@ const Home: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [stats, setStats] = useState<StatsData | null>(null);
-  const [animStats, setAnimStats] = useState({ total: 0, kavis: 0, publishers: 0 });
+  const [animStats, setAnimStats] = useState({ total: 0, kavis: 0, publishers: 0, kosha: 0 });
   const [wpPosts, setWpPosts] = useState<WpPost[]>([]);
 
   useEffect(() => {
@@ -64,12 +60,15 @@ const Home: React.FC = () => {
       .then((r) => {
         setStats(r.data);
         // Animate stats count-up
-        const T = { total: r.data.total, kavis: r.data.by_kavi.length, publishers: r.data.by_publisher.length };
+        const T = { total: r.data.total, kavis: r.data.by_kavi.length, publishers: r.data.by_publisher.length, kosha: r.data.unique_kosha_count };
         const dur = 1100, t0 = performance.now();
         const tick = (now: number) => {
           const p = Math.min(1, (now - t0) / dur);
           const e = 1 - Math.pow(1 - p, 3);
-          setAnimStats({ total: Math.round(T.total * e), kavis: Math.round(T.kavis * e), publishers: Math.round(T.publishers * e) });
+          setAnimStats({
+            total: Math.round(T.total * e), kavis: Math.round(T.kavis * e),
+            publishers: Math.round(T.publishers * e), kosha: Math.round(T.kosha * e),
+          });
           if (p < 1) requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
@@ -89,50 +88,74 @@ const Home: React.FC = () => {
         
 
       {/* ── Hero ───────────────────────────────────────────── */}
-      <div style={{ maxWidth: 880, margin: '0 auto', padding: '56px 22px 32px', textAlign: 'center' }}>
+      <div style={{ maxWidth: 980, margin: '0 auto', padding: '56px 22px 32px' }}>
         <a href="https://www.yakshavahini.com" target="_blank" rel="noopener" className="block">
               <img src="/yakshavahini.jpg" alt="ಯಕ್ಷವಾಹಿನಿ"
                 style={{ width: '100%', objectFit: 'contain', background: '#fff', padding: '16px 32px', maxHeight: 120 }} />
             </a>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          background: 'var(--ps-accent-soft)', color: 'var(--ps-accent-text)',
-          borderRadius: 999, padding: '6px 14px',
-          fontFamily: 'system-ui', fontSize: 11.5, fontWeight: 600,
-          letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 24,
-        }}>
-          {t('home.badge')}
-        </div>
 
-        <h1 className="ps-serif" style={{
-          fontWeight: 600, fontSize: 'clamp(28px, 5vw, 48px)',
-          lineHeight: 1.12, letterSpacing: '-.02em', margin: '0 0 18px',
-          color: 'var(--ps-text)',
-        }}>
-          {t('home.title')}
-        </h1>
+        <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-12">
+          {/* Left: badge + title + description */}
+          <div className="flex-1 text-center md:text-left">
+            <div className="mx-auto md:mx-0" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: 'var(--ps-accent-soft)', color: 'var(--ps-accent-text)',
+              borderRadius: 999, padding: '6px 14px',
+              fontFamily: 'system-ui', fontSize: 11.5, fontWeight: 600,
+              letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 24,
+            }}>
+              {t('home.badge')}
+            </div>
 
-        <p className="kn-serif" style={{
-          fontSize: 'clamp(15px, 2.5vw, 18px)', lineHeight: 1.6,
-          color: 'var(--ps-muted)', margin: '0 auto 32px', maxWidth: 620,
-        }}>
-          {t('home.description')}
-        </p>
+            <h1 className="ps-serif" style={{
+              fontWeight: 600, fontSize: 'clamp(28px, 5vw, 48px)',
+              lineHeight: 1.12, letterSpacing: '-.02em', margin: '0 0 18px',
+              color: 'var(--ps-text)',
+            }}>
+              {t('home.title')}
+            </h1>
 
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
-          <button
-            onClick={() => navigate('/library')}
-            style={{
-              display: 'inline-flex', alignItems: 'center', gap: 9,
-              background: 'var(--ps-grad)', color: '#fff',
-              borderRadius: 999, padding: '14px 28px',
-              fontFamily: "'Noto Sans Kannada', sans-serif", fontSize: 15, fontWeight: 600,
-              cursor: 'pointer', border: 'none',
-              boxShadow: 'var(--ps-shadow-md)',
-            }}
-          >
-            {t('home.cta')}
-          </button>
+            <p className="kn-serif mx-auto md:mx-0" style={{
+              fontSize: 'clamp(15px, 2.5vw, 18px)', lineHeight: 1.6,
+              color: 'var(--ps-muted)', margin: 0, maxWidth: 560,
+            }}>
+              {t('home.description')}
+            </p>
+          </div>
+
+          {/* Right: CTA + Search, stacked on desktop, side-by-side on mobile */}
+          <div className="flex flex-row md:flex-col gap-3 w-full md:w-56 shrink-0">
+            <button
+              onClick={() => navigate('/library')}
+              className="flex-1 md:flex-none"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 9,
+                background: 'var(--ps-grad)', color: '#fff',
+                borderRadius: 999, padding: '14px 20px',
+                fontFamily: "'Noto Sans Kannada', sans-serif", fontSize: 15, fontWeight: 600,
+                cursor: 'pointer', border: 'none',
+                boxShadow: 'var(--ps-shadow-md)',
+              }}
+            >
+              {t('home.cta')}
+            </button>
+            <button
+              onClick={() => navigate('/search')}
+              className="flex-1 md:flex-none"
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: 'var(--ps-surface)', color: 'var(--ps-text)',
+                border: '1px solid var(--ps-border)',
+                borderRadius: 999, padding: '14px 20px',
+                fontFamily: "'Noto Sans Kannada', sans-serif", fontSize: 15, fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: 'var(--ps-shadow-sm)',
+              }}
+            >
+              <SearchIcon style={{ width: 16, height: 16 }} />
+              {t('nav.search')}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -148,6 +171,7 @@ const Home: React.FC = () => {
             { value: animStats.total, label: t('home.stats.total') },
             { value: animStats.kavis, label: t('home.stats.kavis') },
             { value: animStats.publishers, label: t('home.stats.publishers') },
+            { value: animStats.kosha, label: t('home.stats.kosha') },
           ].map((s, i) => (
             <React.Fragment key={s.label}>
               {i > 0 && <div style={{ width: 1, background: 'var(--ps-border)' }} />}
@@ -168,11 +192,12 @@ const Home: React.FC = () => {
         {stats?.recently_added && stats.recently_added.length > 0 && (
           <section style={{ marginBottom: 52 }}>
             <SectionHeading title={t('home.recently_added')} linkLabel={t('home.view_all')} onLink={() => navigate('/library')} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
-              {stats.recently_added.map((e) => (
-                <EntryCard key={e.id} entry={e} />
-              ))}
-            </div>
+            <Carousel
+              items={stats.recently_added}
+              keyExtractor={(e) => e.id}
+              itemWidth={220}
+              renderItem={(e) => <EntryCard entry={e} />}
+            />
           </section>
         )}
 
@@ -180,16 +205,19 @@ const Home: React.FC = () => {
         {wpPosts.length > 0 && (
           <section style={{ marginBottom: 52 }}>
             <SectionHeading title={t('home.from_journal')} />
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
-              {wpPosts.map((post) => (
+            <Carousel
+              items={wpPosts}
+              keyExtractor={(post) => post.id}
+              itemWidth={280}
+              renderItem={(post) => (
                 <button
-                  key={post.id}
                   onClick={() => navigate(`/blog/${post.id}`)}
                   style={{
                     background: 'var(--ps-surface)', border: '1px solid var(--ps-border)',
                     borderRadius: 18, padding: 18, boxShadow: 'var(--ps-shadow-sm)',
                     cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 10,
                     textAlign: 'left', transition: 'box-shadow .18s, transform .18s',
+                    width: '100%', height: '100%',
                   }}
                   onMouseEnter={(e) => { e.currentTarget.style.boxShadow = 'var(--ps-shadow-md)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'var(--ps-shadow-sm)'; e.currentTarget.style.transform = ''; }}
@@ -210,15 +238,15 @@ const Home: React.FC = () => {
                     {new Date(post.date).toLocaleDateString('kn-IN', { year: 'numeric', month: 'long' })}
                   </div>
                 </button>
-              ))}
-            </div>
+              )}
+            />
           </section>
         )}
 
         {/* ── Top Kavis ──────────────────────────────────── */}
         {stats?.by_kavi && stats.by_kavi.length > 0 && (
           <section style={{ marginBottom: 52 }}>
-            <SectionHeading title={t('home.top_kavis')} linkLabel={t('home.browse_by_kavi')} onLink={() => navigate('/library')} />
+            <SectionHeading title={t('home.top_kavis')} linkLabel={t('home.browse_by_kavi')} onLink={() => navigate('/kavis')} />
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
               {stats.by_kavi.slice(0, 8).map((k) => (
                 <button
@@ -260,7 +288,7 @@ const Home: React.FC = () => {
                       <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--ps-muted)' }} />
                       <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 9, fill: 'var(--ps-muted)' }} />
                       <Tooltip />
-                      <Bar dataKey="count" fill="#7C3AED" radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="count" fill="var(--ps-accent)" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -306,9 +334,13 @@ const Home: React.FC = () => {
         <div style={{ fontFamily: 'system-ui', fontSize: 12, color: 'var(--ps-faint)' }}>
           {t('home.footer_desc')}
         </div>
-        <a href="/admin-login" style={{ fontFamily: 'ui-monospace,monospace', fontSize: 11, color: 'var(--ps-faint)', textDecoration: 'none', opacity: 0.5 }}>
-          v1.0
-        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <button onClick={() => navigate('/contact')}
+            className="kn-sans"
+            style={{ fontFamily: 'system-ui', fontSize: 12.5, color: 'var(--ps-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            {t('nav.contact')}
+          </button>
+        </div>
       </div>
     </div>
   );

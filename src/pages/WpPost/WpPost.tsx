@@ -51,7 +51,7 @@ const WpPost: React.FC = () => {
   if (error || !post) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-16 text-center">
-        <p className="text-slate-500 mb-4">ಪೋಸ್ಟ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</p>
+        <p className="mb-4" style={{ color: 'var(--ps-muted)' }}>ಪೋಸ್ಟ್ ತೆರೆಯಲು ಸಾಧ್ಯವಾಗಲಿಲ್ಲ.</p>
         <Button variant="outline" onClick={() => navigate(-1)}>Back</Button>
       </div>
     );
@@ -62,13 +62,17 @@ const WpPost: React.FC = () => {
       {/* Back */}
       <button
         onClick={() => navigate(-1)}
-        className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-600 transition-colors mb-6"
+        className="flex items-center gap-1.5 text-sm transition-colors mb-6"
+        style={{ color: 'var(--ps-muted)' }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ps-accent-text)')}
+        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ps-muted)')}
       >
         <ArrowLeft className="w-4 h-4" />
         Back
       </button>
 
-      <article className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <article className="rounded-2xl overflow-hidden"
+        style={{ background: 'var(--ps-surface)', border: '1px solid var(--ps-border)', boxShadow: 'var(--ps-shadow-sm)' }}>
         {/* Featured image */}
         {post.jetpack_featured_media_url && (
           <img
@@ -80,7 +84,7 @@ const WpPost: React.FC = () => {
 
         <div className="p-6">
           {/* Date */}
-          <div className="flex items-center gap-1.5 text-xs text-slate-400 mb-3">
+          <div className="flex items-center gap-1.5 text-xs mb-3" style={{ color: 'var(--ps-faint)' }}>
             <Calendar className="w-3.5 h-3.5" />
             {new Date(post.date).toLocaleDateString('kn-IN', {
               year: 'numeric', month: 'long', day: 'numeric',
@@ -89,18 +93,19 @@ const WpPost: React.FC = () => {
 
           {/* Title */}
           <h1
-            className="text-2xl font-bold text-slate-900 kn leading-snug mb-4"
+            className="text-2xl font-bold kn leading-snug mb-4"
+            style={{ color: 'var(--ps-text)' }}
             dangerouslySetInnerHTML={{ __html: post.title.rendered }}
           />
 
           {/* Content */}
           <div
-            className="prose prose-sm prose-slate max-w-none kn wp-content"
+            className="prose prose-sm max-w-none kn wp-content"
             dangerouslySetInnerHTML={{ __html: post.content.rendered }}
           />
 
           {/* Link to WordPress */}
-          <div className="mt-8 pt-6 border-t border-slate-100">
+          <div className="mt-8 pt-6" style={{ borderTop: '1px solid var(--ps-border)' }}>
             <Button asChild variant="outline" size="sm">
               <a href={post.link} target="_blank" rel="noopener">
                 <ExternalLink className="w-4 h-4 mr-1.5" />

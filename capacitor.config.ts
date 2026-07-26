@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.pratisangraha.app',
+  appId: 'prasanga.prati.sangraha',
   appName: 'Pratisangraha',
   webDir: 'dist',
   server: {

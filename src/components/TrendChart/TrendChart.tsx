@@ -15,7 +15,7 @@ const TrendChart: React.FC<Props> = ({ data, title }) => (
         <XAxis dataKey="month" tick={{ fontSize: 10 }} />
         <YAxis tick={{ fontSize: 10 }} />
         <Tooltip />
-        <Bar dataKey="count" fill="#3880ff" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="count" fill="var(--ps-accent)" radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   </div>

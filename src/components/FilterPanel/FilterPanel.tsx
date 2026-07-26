@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { SlidersHorizontal, ArrowUpAZ, ArrowDownAZ, ChevronDown, X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AutocompleteInput from '@/components/AutocompleteInput/AutocompleteInput';
 import type { SortField, SortOrder } from '@/services/api';
 import { fetchPublishYears } from '@/services/api';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface FilterPanelProps {
   open: boolean;
@@ -25,8 +26,6 @@ interface FilterPanelProps {
   onSortFieldChange: (v: SortField) => void;
   onSortOrderChange: (v: SortOrder) => void;
   onClear: () => void;
-  /** When true: no toggle button, content always visible (desktop sidebar mode) */
-  alwaysOpen?: boolean;
 }
 
 const ANY = '__any__';
@@ -36,9 +35,11 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
   kavi, publisher, prasanga, hasPdf, yearFrom, yearTo, sortField, sortOrder,
   onKaviChange, onPublisherChange, onPrasangaChange, onHasPdfChange,
   onYearFromChange, onYearToChange, onSortFieldChange, onSortOrderChange,
-  onClear, alwaysOpen = false,
+  onClear,
 }) => {
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useClickOutside(containerRef, () => onOpenChange(false), open);
 
   useEffect(() => {
     fetchPublishYears()
@@ -51,8 +52,6 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     !!yearFrom || !!yearTo,
     sortField !== 'entry_id' || sortOrder !== 'asc',
   ].filter(Boolean).length;
-
-  const showContent = alwaysOpen || open;
 
   const labelStyle: React.CSSProperties = {
     fontFamily: "'Noto Sans Kannada', sans-serif",
@@ -176,7 +175,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
                 transition: 'background .15s, color .15s',
               }}>
               {o === 'asc' ? <ArrowUpAZ style={{ width: 14, height: 14 }} /> : <ArrowDownAZ style={{ width: 14, height: 14 }} />}
-              {o === 'asc' ? 'A–Z' : 'Z–A'}
+              <span className="kn-sans">{o === 'asc' ? 'ಅ–ಳ' : 'ಳ–ಅ'}</span>
             </button>
           ))}
         </div>
@@ -199,30 +198,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
     </div>
   );
 
-  if (alwaysOpen) {
-    return (
-      <div style={{
-        background: 'var(--ps-surface)', border: '1px solid var(--ps-border)',
-        borderRadius: 18, padding: 18, boxShadow: 'var(--ps-shadow-sm)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <span className="ps-serif" style={{ fontWeight: 600, fontSize: 15, color: 'var(--ps-text)' }}>Filters</span>
-          {activeCount > 0 && (
-            <span style={{
-              background: 'var(--ps-accent)', color: '#fff',
-              borderRadius: 999, padding: '2px 8px',
-              fontFamily: 'system-ui', fontSize: 11, fontWeight: 700,
-            }}>{activeCount}</span>
-          )}
-        </div>
-        {panelContent}
-      </div>
-    );
-  }
-
-  // Mobile collapsible mode
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div ref={containerRef} style={{ position: 'relative' }}>
       <button
         onClick={() => onOpenChange(!open)}
         style={{
@@ -244,11 +221,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({
         <ChevronDown style={{ width: 14, height: 14, transform: open ? 'rotate(180deg)' : '', transition: 'transform .2s' }} />
       </button>
 
-      {showContent && (
+      {/* Floats over the page instead of pushing content down */}
+      {open && (
         <div style={{
-          marginTop: 8,
+          position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 40,
+          width: 300, maxWidth: '92vw', maxHeight: '70vh', overflowY: 'auto',
           background: 'var(--ps-surface)', border: '1px solid var(--ps-border)',
-          borderRadius: 18, padding: 18, boxShadow: 'var(--ps-shadow-sm)',
+          borderRadius: 18, padding: 18, boxShadow: 'var(--ps-shadow-md)',
         }}>
           {panelContent}
         </div>

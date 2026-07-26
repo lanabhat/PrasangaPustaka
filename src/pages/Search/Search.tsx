@@ -4,9 +4,12 @@ import { useTranslation } from 'react-i18next';
 import { Search as SearchIcon, Loader2, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import EntryCard from '@/components/EntryCard/EntryCard';
+import EntryListRow from '@/components/EntryListRow/EntryListRow';
+import ViewModeToggle from '@/components/ViewModeToggle/ViewModeToggle';
 import { searchEntries } from '@/services/api';
 import type { Entry } from '@/services/api';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useViewMode } from '@/hooks/useViewMode';
 
 function mapItem(item: Record<string, unknown>): Entry {
   return {
@@ -25,11 +28,7 @@ function mapItem(item: Record<string, unknown>): Entry {
     publish_date_kannada: ((item.dateadded ?? item.publish_date_kannada) as string) ?? '',
     publish_date_english: ((item.englishDateAdded ?? item.publish_date_english) as string) ?? '',
     notes: ((item.remarks ?? item.notes) as string) ?? '',
-    status: (item.status as string) ?? 'approved',
-    review_notes: '',
     view_count: (item.view_count as number) ?? 0,
-    submitted_by: '',
-    reviewed_at: '',
   };
 }
 
@@ -42,6 +41,7 @@ const Search: React.FC = () => {
   const [results, setResults] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [viewMode, setViewMode] = useViewMode();
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -65,22 +65,24 @@ const Search: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-6">
-      <h1 className="text-2xl font-bold text-slate-800 mb-6">{t('nav.search')}</h1>
+      <h1 className="ps-display text-2xl font-bold mb-6" style={{ color: 'var(--ps-text)' }}>{t('nav.search')}</h1>
 
       {/* Search input */}
       <div className="relative mb-8">
-        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+        <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--ps-faint)' }} />
         <Input
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={t('search.placeholder')}
-          className="pl-10 pr-10 h-12 text-base rounded-xl border-slate-200 shadow-sm focus-visible:ring-indigo-500"
+          className="pl-10 pr-10 h-12 text-base rounded-xl shadow-sm"
+          style={{ background: 'var(--ps-surface)', borderColor: 'var(--ps-border)', color: 'var(--ps-text)' }}
         />
         {query && (
           <button
             onClick={() => { setQuery(''); setResults([]); setSearched(false); }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            className="absolute right-3 top-1/2 -translate-y-1/2"
+            style={{ color: 'var(--ps-faint)' }}
           >
             <X className="w-4 h-4" />
           </button>
@@ -89,29 +91,40 @@ const Search: React.FC = () => {
 
       {loading && (
         <div className="flex justify-center py-16">
-          <Loader2 className="w-7 h-7 animate-spin text-indigo-500" />
+          <Loader2 className="w-7 h-7 animate-spin" style={{ color: 'var(--ps-accent)' }} />
         </div>
       )}
 
       {!loading && searched && results.length === 0 && (
-        <p className="text-center text-slate-500 py-16">{t('library.no_results')}</p>
+        <p className="text-center py-16" style={{ color: 'var(--ps-muted)' }}>{t('library.no_results')}</p>
       )}
 
       {!loading && results.length > 0 && (
         <>
-          <p className="text-sm text-slate-500 mb-4">
-            {results.length} result{results.length !== 1 ? 's' : ''} for &ldquo;{debouncedQuery}&rdquo;
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {results.map((e) => (
-              <EntryCard key={`${e.id}-${e.entry_id}`} entry={e} />
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <p className="text-sm" style={{ color: 'var(--ps-muted)' }}>
+              {results.length} result{results.length !== 1 ? 's' : ''} for &ldquo;{debouncedQuery}&rdquo;
+            </p>
+            <ViewModeToggle mode={viewMode} onChange={setViewMode} />
           </div>
+          {viewMode === 'thumbnail' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {results.map((e) => (
+                <EntryCard key={`${e.id}-${e.entry_id}`} entry={e} />
+              ))}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {results.map((e) => (
+                <EntryListRow key={`${e.id}-${e.entry_id}`} entry={e} />
+              ))}
+            </div>
+          )}
         </>
       )}
 
       {!loading && !searched && (
-        <p className="text-center text-slate-400 py-16 text-sm">
+        <p className="text-center py-16 text-sm" style={{ color: 'var(--ps-faint)' }}>
           Type at least 2 characters to search
         </p>
       )}

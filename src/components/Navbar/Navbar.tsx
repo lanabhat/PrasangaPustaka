@@ -1,13 +1,21 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Globe, Search } from 'lucide-react';
+import { Globe, Search, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAuth } from '@/hooks/useAuth';
+import { useTheme, type Theme } from '@/contexts/ThemeContext';
+import { useSidebar } from '@/contexts/SidebarContext';
+
+const THEMES: { id: Theme; label: string }[] = [
+  { id: 'simple', label: 'Simple' },
+  { id: 'library', label: 'Library' },
+  { id: 'dark', label: 'Dark' },
+];
 
 const Navbar: React.FC = () => {
   const { t, i18n } = useTranslation();
-  const { user, isAuthenticated } = useAuth();
+  const { theme, setTheme } = useTheme();
+  const { mobileOpen, setMobileOpen } = useSidebar();
   const navigate = useNavigate();
   const [query, setQuery] = React.useState('');
 
@@ -24,6 +32,16 @@ const Navbar: React.FC = () => {
     <header style={{ background: 'var(--ps-bg)', borderBottom: '1px solid var(--ps-border)' }}
       className="sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-5 h-14 flex items-center gap-5">
+        {/* Hamburger — mobile only, toggles the slide-in menu open/closed */}
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="md:hidden p-1.5 -ml-1.5 rounded-lg shrink-0"
+          style={{ color: 'var(--ps-muted)' }}
+          aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
         {/* Logo lockup */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
           <div style={{
@@ -34,7 +52,7 @@ const Navbar: React.FC = () => {
           }}>
             <span className="kn-serif" style={{ color: '#fff', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>ಯ</span>
           </div>
-          <div style={{ lineHeight: 1.1 }}>
+          <div style={{ lineHeight: 1.1 }} className="hidden sm:block">
             <div className="ps-serif" style={{ fontWeight: 600, fontSize: 17, letterSpacing: '-0.01em', color: 'var(--ps-text)' }}>
               Pratisangraha
             </div>
@@ -64,34 +82,64 @@ const Navbar: React.FC = () => {
           />
         </div>
 
+        {/* Search icon — mobile only, links to the Search page */}
+        <button
+          onClick={() => navigate('/search')}
+          className="sm:hidden p-1.5 rounded-lg shrink-0"
+          style={{ color: 'var(--ps-muted)' }}
+          aria-label={t('nav.search')}
+        >
+          <Search className="w-5 h-5" />
+        </button>
+
         <div className="flex-1" />
 
-        {/* Language toggle */}
+        {/* Theme switcher — pill group on larger screens */}
+        <div style={{
+          alignItems: 'center', gap: 2,
+          background: 'var(--ps-surface-2)', borderRadius: 8,
+          padding: 3, border: '1px solid var(--ps-border)',
+        }} className="hidden sm:flex">
+          {THEMES.map(({ id, label }) => (
+            <button key={id} onClick={() => setTheme(id)}
+              style={{
+                fontFamily: 'system-ui', fontSize: 11.5, fontWeight: theme === id ? 600 : 400,
+                padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
+                background: theme === id ? 'var(--ps-surface)' : 'transparent',
+                color: theme === id ? 'var(--ps-accent-text)' : 'var(--ps-muted)',
+                boxShadow: theme === id ? 'var(--ps-shadow-sm)' : 'none',
+                transition: 'all 0.15s',
+              }}>
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* Theme switcher — compact dropdown on small screens */}
+        <select
+          value={theme}
+          onChange={(e) => setTheme(e.target.value as Theme)}
+          className="sm:hidden"
+          style={{
+            fontFamily: 'system-ui', fontSize: 11.5, fontWeight: 600,
+            padding: '5px 6px', borderRadius: 6, maxWidth: 78,
+            background: 'var(--ps-surface-2)', color: 'var(--ps-accent-text)',
+            border: '1px solid var(--ps-border)', outline: 'none',
+          }}
+          aria-label="Theme"
+        >
+          {THEMES.map(({ id, label }) => (
+            <option key={id} value={id}>{label}</option>
+          ))}
+        </select>
+
+        {/* Language toggle — icon only on mobile, icon + label from sm up */}
         <Button variant="ghost" size="sm" onClick={toggleLang}
-          className="text-xs font-medium gap-1"
+          className="text-xs font-medium gap-1 px-2 sm:px-3 shrink-0"
           style={{ color: 'var(--ps-muted)' }}>
           <Globe className="w-3.5 h-3.5" />
-          {t('lang.toggle')}
+          <span className="hidden sm:inline">{t('lang.toggle')}</span>
         </Button>
-
-        {/* Avatar — only shown when authenticated, links to admin panel */}
-        {isAuthenticated && (
-          <Link to="/profile" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
-            {user?.picture ? (
-              <img src={user.picture} alt={user.name}
-                style={{ width: 34, height: 34, borderRadius: '50%', border: '2px solid var(--ps-accent-soft)' }} />
-            ) : (
-              <div style={{
-                width: 34, height: 34, borderRadius: '50%',
-                background: 'var(--ps-surface-2)', border: '1px solid var(--ps-border)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'system-ui', fontSize: 13, fontWeight: 700, color: 'var(--ps-accent-text)',
-              }}>
-                {user?.name?.charAt(0)?.toUpperCase() ?? '?'}
-              </div>
-            )}
-          </Link>
-        )}
       </div>
     </header>
   );

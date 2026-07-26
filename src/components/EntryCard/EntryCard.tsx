@@ -1,27 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Entry } from '@/services/api';
-import { useAuth } from '@/hooks/useAuth';
 
 interface Props {
   entry: Entry;
   compact?: boolean;
 }
 
-const statusColor: Record<string, string> = {
-  pending: '#d97706',
-  draft: '#6F665A',
-  rejected: '#dc2626',
-  needs_correction: '#ea580c',
-};
-
 const EntryCard: React.FC<Props> = ({ entry, compact = false }) => {
   const navigate = useNavigate();
-  const { role } = useAuth();
-  const canSeeStatus = !!role;
 
   const hasPdf = entry.prati_link && entry.prati_link.length > 15;
-  const showStatus = canSeeStatus && entry.status && entry.status !== 'approved';
 
   const cardStyle: React.CSSProperties = {
     background: 'var(--ps-surface)',
@@ -32,6 +21,8 @@ const EntryCard: React.FC<Props> = ({ entry, compact = false }) => {
     display: 'flex',
     flexDirection: 'column',
     gap: 9,
+    height: '100%',
+    boxSizing: 'border-box',
     transition: 'box-shadow .18s, transform .18s, border-color .18s',
   };
 
@@ -98,15 +89,6 @@ const EntryCard: React.FC<Props> = ({ entry, compact = false }) => {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 9.5, fontWeight: 800, letterSpacing: '.04em',
             }}>PDF</div>
-          )}
-          {showStatus && (
-            <span style={{
-              fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 6,
-              background: 'var(--ps-surface-2)', color: statusColor[entry.status] || 'var(--ps-muted)',
-              textTransform: 'capitalize',
-            }}>
-              {entry.status.replace('_', ' ')}
-            </span>
           )}
         </div>
       </div>

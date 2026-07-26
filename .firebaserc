@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "prasangapustakadev"
+  },
+  "targets": {
+    "yakshaprasangaprati": {
+      "hosting": {
+        "prod": [
+          "prasangapustaka"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

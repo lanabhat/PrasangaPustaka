@@ -1,33 +1,15 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  ArrowLeft, ExternalLink, Share2, Edit, Eye,
-  CheckCircle, XCircle, AlertCircle, BookOpen, BookMarked,
-  Maximize2, Loader2, Link2, Copy, Flag,
+  ArrowLeft, ArrowRight, ExternalLink, Share2, Eye,
+  BookOpen, BookMarked, Maximize2, Loader2,
 } from 'lucide-react';
 import { Share } from '@capacitor/share';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel,
-  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
-  AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { fetchEntry, reviewEntry } from '@/services/api';
+import { fetchEntry } from '@/services/api';
 import type { Entry } from '@/services/api';
-import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-
-const statusColors: Record<string, { bg: string; text: string }> = {
-  approved: { bg: '#D1FAE5', text: '#065F46' },
-  pending: { bg: '#FEF3C7', text: '#92400E' },
-  draft: { bg: 'var(--ps-surface-2)', text: 'var(--ps-muted)' },
-  rejected: { bg: '#FEE2E2', text: '#991B1B' },
-  needs_correction: { bg: '#FFEDD5', text: '#9A3412' },
-};
 
 function MetaItem({ label, value }: { label: string; value?: string | string[] | null }) {
   if (!value || (Array.isArray(value) && value.length === 0)) return null;
@@ -42,6 +24,55 @@ function MetaItem({ label, value }: { label: string; value?: string | string[] |
   );
 }
 
+function formatEnglishDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${dd}-${mm}-${yyyy}`;
+}
+
+function buildShareText(entry: Entry, pageUrl: string): string {
+  const hasKosha = !!entry.kosha_link && entry.kosha_link.length > 15;
+  const hasPrati = !!entry.prati_link && entry.prati_link.length > 15;
+
+  const lines: string[] = [
+    'ಯಕ್ಷವಾಹಿನಿ(ರಿ)ಯ ಯಕ್ಷಪ್ರಸಂಗಕೋಶ/ಪ್ರಸಂಗ ಪ್ರತಿ ಸಂಗ್ರಹದಿಂದ ನಿಮ್ಮೊಡನೆ ಈ ಯಕ್ಷಗಾನ ಪ್ರಸಂಗ ಪುಸ್ತಕವನ್ನು ಹಂಚಲಾಗಿದೆ',
+    '',
+    `ಪ್ರತಿಸಂಗ್ರಹದ ಕೊಂಡಿ: ${pageUrl}`,
+    '',
+    `ಪ್ರಸಂಗ: ${entry.prasanga || '—'}`,
+  ];
+  if (entry.kavi) lines.push(`ಕವಿ: ${entry.kavi}`);
+  if (entry.publisher) lines.push(`ಪ್ರಕಾಶನದ ವಿವರ: ${entry.publisher}`);
+  if (entry.publish_date_kannada) lines.push(`ಸಂಗ್ರಹಕ್ಕೆ ಸೇರಿದ ದಿನಾಂಕ: ${entry.publish_date_kannada}`);
+
+  if (hasKosha || hasPrati) {
+    lines.push('');
+    if (hasKosha) lines.push(`ಪ್ರಸಂಗಕೋಶದ ಪ್ರತಿ: ${entry.kosha_link}`);
+    if (hasPrati) lines.push(`ಪ್ರತಿ ಸಂಗ್ರಹದ ಪ್ರತಿ: ${entry.prati_link}`);
+  }
+
+  if (entry.contributors && entry.contributors.length > 0) {
+    lines.push('', `ಸಂಗ್ರಹಕ್ಕೆ ಸಹಕರಿಸಿದವರು: ${entry.contributors.join('; ')}`);
+  }
+
+  if (entry.notes) {
+    lines.push('', `ಟಿಪ್ಪಣಿ: ${entry.notes}`);
+  }
+
+  lines.push(
+    '',
+    '',
+    'Android App: https://play.google.com/store/apps/details?id=prasanga.prati.sangraha',
+    '',
+    'Visit: www.yakshavahini.com',
+  );
+
+  return lines.join('\n');
+}
+
 function getPdfEmbedUrl(url: string): string | null {
   if (!url || url.length < 15) return null;
   const driveFile = url.match(/\/file\/d\/([^/?#]+)/);
@@ -54,18 +85,51 @@ function getPdfEmbedUrl(url: string): string | null {
 
 type ViewSource = 'kosha' | 'prati';
 
+interface NavState {
+  entryIds?: number[];
+  currentIndex?: number;
+}
+
+const SWIPE_THRESHOLD = 50;
+
 const EntryDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { user, role, isAuthenticated } = useAuth();
+  const location = useLocation();
   const [entry, setEntry] = useState<Entry | null>(null);
   const [loading, setLoading] = useState(true);
-  const [reviewNotes, setReviewNotes] = useState('');
   const [iframeLoading, setIframeLoading] = useState(true);
   const [activeSource, setActiveSource] = useState<ViewSource>('prati');
-  const [linkReviewOpen, setLinkReviewOpen] = useState(false);
-  const [linkNote, setLinkNote] = useState('');
+  const touchStartX = useRef<number | null>(null);
+
+  const navState = (location.state || {}) as NavState;
+  const entryIds = navState.entryIds;
+  const currentIndex = navState.currentIndex;
+  const hasPrev = entryIds && currentIndex !== undefined && currentIndex > 0;
+  const hasNext = entryIds && currentIndex !== undefined && currentIndex < entryIds.length - 1;
+
+  const goToOffset = (offset: number) => {
+    if (!entryIds || currentIndex === undefined) return;
+    const nextIndex = currentIndex + offset;
+    const nextId = entryIds[nextIndex];
+    if (nextId === undefined) return;
+    navigate(`/entry/${nextId}`, { state: { entryIds, currentIndex: nextIndex }, replace: true });
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null || !entryIds) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    touchStartX.current = null;
+    if (Math.abs(delta) < SWIPE_THRESHOLD) return;
+    // Swipe left (finger moves right→left, negative delta) → next; swipe right → prev.
+    if (delta < 0 && hasNext) goToOffset(1);
+    else if (delta > 0 && hasPrev) goToOffset(-1);
+  };
 
   useEffect(() => {
     fetchEntry(parseInt(id!))
@@ -81,52 +145,20 @@ const EntryDetail: React.FC = () => {
 
   const handleShare = async () => {
     if (!entry) return;
+    // window.location.origin resolves to Capacitor's local WebView origin
+    // (https://localhost) on Android — swap in the real public site instead.
+    const pageUrl = `https://prasangapustaka.web.app${window.location.pathname}${window.location.search}`;
     try {
       await Share.share({
         title: entry.prasanga,
-        text: `${entry.prasanga} — ${entry.kavi} ವಿರಚಿತ`,
-        url: entry.prati_link || window.location.href,
+        text: buildShareText(entry, pageUrl),
+        url: pageUrl,
       });
     } catch {
-      navigator.clipboard?.writeText(window.location.href);
+      navigator.clipboard?.writeText(pageUrl);
       toast.success('Link copied');
     }
   };
-
-  const handleReview = async (status: string, notes?: string) => {
-    if (!entry) return;
-    try {
-      const r = await reviewEntry(entry.id, status, notes);
-      setEntry(r.data);
-      toast.success(`Entry ${status}`);
-    } catch {
-      toast.error('Action failed');
-    }
-  };
-
-  const handleLinkReview = async () => {
-    if (!entry || !linkNote.trim()) return;
-    try {
-      const r = await reviewEntry(entry.id, entry.status, linkNote.trim());
-      setEntry(r.data);
-      setLinkNote('');
-      setLinkReviewOpen(false);
-      toast.success('Review note saved');
-    } catch {
-      toast.error('Failed to save note');
-    }
-  };
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`));
-  };
-
-  const canSeeStatus = !!role;
-  const canEdit = isAuthenticated && (
-    role === 'admin' || role === 'editor' ||
-    (role === 'volunteer' && entry?.submitted_by === user?.email)
-  );
-  const canReview = role === 'admin' || role === 'editor';
 
   if (loading) {
     return (
@@ -140,7 +172,7 @@ const EntryDetail: React.FC = () => {
 
   if (!entry) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center text-slate-500">
+      <div className="max-w-3xl mx-auto px-4 py-16 text-center" style={{ color: 'var(--ps-muted)' }}>
         {t('error.not_found')}
       </div>
     );
@@ -160,22 +192,64 @@ const EntryDetail: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '22px 22px 60px' }}>
-      {/* Back */}
-      <button
-        onClick={() => navigate(-1)}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: 7,
-          fontFamily: "'Noto Sans Kannada', sans-serif", fontSize: 13.5, fontWeight: 500,
-          color: 'var(--ps-muted)', cursor: 'pointer',
-          background: 'none', border: 'none', padding: 0, marginBottom: 18,
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ps-text)')}
-        onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ps-muted)')}
-      >
-        <ArrowLeft style={{ width: 15, height: 15 }} />
-        ಕ್ಯಾಟಲಾಗ್‌ಗೆ ಹಿಂತಿರುಗಿ
-      </button>
+    <div
+      style={{ maxWidth: 1100, margin: '0 auto', padding: '22px 22px 60px' }}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Back + Prev/Next (Prev/Next only appear when arriving from a grouped browse list, e.g. Prasanga Kosha copies) */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            fontFamily: "'Noto Sans Kannada', sans-serif", fontSize: 13.5, fontWeight: 500,
+            color: 'var(--ps-muted)', cursor: 'pointer',
+            background: 'none', border: 'none', padding: 0,
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--ps-text)')}
+          onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--ps-muted)')}
+        >
+          <ArrowLeft style={{ width: 15, height: 15 }} />
+          ಹಿಂದಿರುಗಿ...
+        </button>
+
+        {entryIds && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              onClick={() => goToOffset(-1)}
+              disabled={!hasPrev}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 34, height: 34, borderRadius: 10,
+                border: '1px solid var(--ps-border)', background: 'var(--ps-surface)',
+                color: hasPrev ? 'var(--ps-text)' : 'var(--ps-faint)',
+                cursor: hasPrev ? 'pointer' : 'not-allowed', opacity: hasPrev ? 1 : 0.5,
+              }}
+            >
+              <ArrowLeft style={{ width: 15, height: 15 }} />
+            </button>
+            {currentIndex !== undefined && (
+              <span style={{ fontFamily: 'system-ui', fontSize: 12, color: 'var(--ps-faint)' }}>
+                {currentIndex + 1} / {entryIds.length}
+              </span>
+            )}
+            <button
+              onClick={() => goToOffset(1)}
+              disabled={!hasNext}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 34, height: 34, borderRadius: 10,
+                border: '1px solid var(--ps-border)', background: 'var(--ps-surface)',
+                color: hasNext ? 'var(--ps-text)' : 'var(--ps-faint)',
+                cursor: hasNext ? 'pointer' : 'not-allowed', opacity: hasNext ? 1 : 0.5,
+              }}
+            >
+              <ArrowRight style={{ width: 15, height: 15 }} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* Title + chips */}
       <div style={{ marginBottom: 22 }}>
@@ -200,43 +274,13 @@ const EntryDetail: React.FC = () => {
               borderRadius: 8, padding: '5px 11px', fontFamily: 'system-ui', fontSize: 12.5, fontWeight: 500,
             }}>{new Date(entry.publish_date_english).getFullYear()}</span>
           )}
-          {canSeeStatus && entry.status && (
-            <span style={{
-              display: 'inline-flex', alignItems: 'center',
-              background: statusColors[entry.status]?.bg ?? 'var(--ps-surface-2)',
-              color: statusColors[entry.status]?.text ?? 'var(--ps-muted)',
-              borderRadius: 8, padding: '5px 11px', fontFamily: 'system-ui', fontSize: 12, fontWeight: 600,
-              textTransform: 'capitalize',
-            }}>{entry.status.replace('_', ' ')}</span>
-          )}
           {entry.view_count > 0 && (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'system-ui', fontSize: 12, color: 'var(--ps-faint)' }}>
               <Eye style={{ width: 13, height: 13 }} />{entry.view_count}
             </span>
           )}
-          {canEdit && (
-            <Button variant="outline" size="sm" onClick={() => navigate(`/edit/${entry.id}`)}
-              style={{ borderColor: 'var(--ps-border)', color: 'var(--ps-muted)', marginLeft: 4 }}>
-              <Edit style={{ width: 13, height: 13, marginRight: 6 }} />
-              {t('entry.edit')}
-            </Button>
-          )}
         </div>
       </div>
-
-      {/* Review callout */}
-      {(entry.status === 'needs_correction' || entry.status === 'rejected') && entry.review_notes && (
-        <div style={{
-          marginBottom: 18, padding: '14px 16px', borderRadius: 12,
-          borderLeft: `4px solid ${entry.status === 'rejected' ? '#ef4444' : '#f97316'}`,
-          background: entry.status === 'rejected' ? '#FEF2F2' : '#FFF7ED',
-          color: entry.status === 'rejected' ? '#991B1B' : '#9A3412',
-          fontFamily: 'system-ui', fontSize: 13.5,
-        }}>
-          <strong>{entry.status === 'rejected' ? t('my_submissions.rejection_reason') : t('my_submissions.correction_needed')}:</strong>{' '}
-          {entry.review_notes}
-        </div>
-      )}
 
       {/* Metadata panels */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginBottom: 22 }}>
@@ -246,12 +290,26 @@ const EntryDetail: React.FC = () => {
           borderRadius: 18, padding: 22, boxShadow: 'var(--ps-shadow-sm)', flex: 1, minWidth: 260,
         }}>
           <div className="ps-serif" style={{ fontWeight: 600, fontSize: 15, marginBottom: 16, color: 'var(--ps-text)' }}>
-            Metadata · ವಿವರ
+            {t('entry.details')}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px 24px' }}>
             <MetaItem label={t('entry.publisher')} value={entry.publisher} />
-            <MetaItem label={t('entry.date_kannada')} value={entry.publish_date_kannada} />
-            <MetaItem label={t('entry.date_english')} value={entry.publish_date_english} />
+            <MetaItem label={t('entry.contributors')} value={entry.contributors} />
+            {(entry.publish_date_kannada || entry.publish_date_english) && (
+              <div style={{ gridColumn: 'span 2', minWidth: 0 }}>
+                <div style={{ fontFamily: 'system-ui', fontSize: 10.5, fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase', color: 'var(--ps-faint)', marginBottom: 4 }}>
+                  {t('entry.date')}
+                </div>
+                <div className="kn-serif" style={{ fontSize: 14.5, color: 'var(--ps-text)', lineHeight: 1.4, whiteSpace: 'nowrap' }}>
+                  {entry.publish_date_kannada || formatEnglishDate(entry.publish_date_english)}
+                  {entry.publish_date_kannada && entry.publish_date_english && (
+                    <span style={{ fontSize: 12, color: 'var(--ps-muted)', marginLeft: 6 }}>
+                      ({formatEnglishDate(entry.publish_date_english)})
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -271,134 +329,6 @@ const EntryDetail: React.FC = () => {
         )}
       </div>
 
-      {/* Admin/Editor PDF link review */}
-      {canReview && (hasPdf || hasKosha) && (
-        <div style={{
-          background: 'var(--ps-surface)', border: '1px solid var(--ps-border)',
-          borderRadius: 16, boxShadow: 'var(--ps-shadow-sm)', overflow: 'hidden', marginBottom: 22,
-        }}>
-          <button
-            onClick={() => setLinkReviewOpen((o) => !o)}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              width: '100%', padding: '15px 18px', cursor: 'pointer',
-              background: 'none', border: 'none', textAlign: 'left',
-            }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
-              <span style={{ fontFamily: 'system-ui', fontSize: 14, fontWeight: 600, color: 'var(--ps-text)' }}>PDF Link Review</span>
-              <span style={{
-                fontFamily: 'system-ui', fontSize: 11, fontWeight: 600,
-                color: 'var(--ps-accent-text)', background: 'var(--ps-accent-soft)',
-                borderRadius: 6, padding: '2px 8px',
-              }}>Editor</span>
-            </div>
-            <span style={{ color: 'var(--ps-muted)', fontSize: 13, transform: linkReviewOpen ? 'rotate(180deg)' : '', transition: 'transform .2s' }}>▾</span>
-          </button>
-
-          {linkReviewOpen && (
-            <div style={{ padding: '0 18px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {[hasPdf && { label: 'Prasanga Prati', url: entry.prati_link }, hasKosha && { label: 'Kosha Link', url: entry.kosha_link }]
-                .filter(Boolean).map((r: any) => (
-                <div key={r.label} style={{
-                  border: '1px solid var(--ps-border)', borderRadius: 12, padding: 14,
-                  display: 'flex', flexDirection: 'column', gap: 9, background: 'var(--ps-bg)',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                    <span className="kn-sans" style={{ fontSize: 13, fontWeight: 600, color: 'var(--ps-text)' }}>{r.label}</span>
-                  </div>
-                  <div style={{ fontFamily: 'ui-monospace,monospace', fontSize: 11.5, color: 'var(--ps-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {r.url}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button onClick={() => copyToClipboard(r.url, r.label)}
-                      style={{ fontFamily: 'system-ui', fontSize: 12, fontWeight: 600, color: 'var(--ps-muted)', background: 'var(--ps-surface)', border: '1px solid var(--ps-border)', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                      <Copy style={{ width: 12, height: 12 }} />Copy
-                    </button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <button style={{ fontFamily: 'system-ui', fontSize: 12, fontWeight: 600, color: '#fff', background: 'var(--ps-grad)', border: 'none', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <Flag style={{ width: 12, height: 12 }} />Flag broken
-                        </button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Flag Link Issue — {r.label}</AlertDialogTitle>
-                          <AlertDialogDescription>Describe the issue with this link.</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <Textarea value={linkNote} onChange={(e) => setLinkNote(e.target.value)}
-                          placeholder="e.g. broken link, wrong file, low quality scan…" rows={3} />
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setLinkNote('')}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction className="bg-amber-600 hover:bg-amber-700" onClick={handleLinkReview}>Save Note</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Review actions (editor/admin) */}
-      {canReview && entry.status === 'pending' && (
-        <div style={{
-          background: 'var(--ps-surface)', border: '1px solid var(--ps-border)',
-          borderRadius: 16, padding: '18px 22px', boxShadow: 'var(--ps-shadow-sm)',
-          display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 22,
-        }}>
-          <Button variant="default" size="sm" className="bg-emerald-600 hover:bg-emerald-700"
-            onClick={() => handleReview('approved')}>
-            <CheckCircle className="w-4 h-4 mr-1.5" />Approve
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="border-orange-300 text-orange-700 hover:bg-orange-50">
-                <AlertCircle className="w-4 h-4 mr-1.5" />Send for Correction
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Send Back for Correction</AlertDialogTitle>
-                <AlertDialogDescription>Describe what needs to be fixed.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <Textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="Notes for the submitter…" rows={3} />
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction className="bg-orange-600 hover:bg-orange-700" onClick={() => handleReview('needs_correction', reviewNotes)}>Send</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm"><XCircle className="w-4 h-4 mr-1.5" />Reject</Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Reject Entry</AlertDialogTitle>
-                <AlertDialogDescription>Please provide a reason for rejection.</AlertDialogDescription>
-              </AlertDialogHeader>
-              <Textarea value={reviewNotes} onChange={(e) => setReviewNotes(e.target.value)} placeholder="Reason for rejection…" rows={3} />
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => handleReview('rejected', reviewNotes)}>Reject</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-      )}
-
-      {canReview && entry.status === 'rejected' && (
-        <div style={{ marginBottom: 22 }}>
-          <Button variant="outline" size="sm" onClick={() => handleReview('pending')}
-            style={{ borderColor: 'var(--ps-border)', color: 'var(--ps-muted)' }}>
-            Re-open for Review
-          </Button>
-        </div>
-      )}
-
       {/* ── PDF / Kosha Viewer ─────────────────────────────── */}
       {hasAnyPreview && (
         <div style={{ borderRadius: 20, overflow: 'hidden', border: '1px solid var(--ps-border)', boxShadow: 'var(--ps-shadow-md)' }}>
@@ -411,7 +341,7 @@ const EntryDetail: React.FC = () => {
               <div>
                 <div className="kn-serif" style={{ fontWeight: 700, fontSize: 15.5, color: '#fff', lineHeight: 1.2 }}>{entry.prasanga}</div>
                 <div style={{ fontFamily: 'system-ui', fontSize: 11.5, color: 'rgba(255,255,255,.78)', marginTop: 2 }}>
-                  {activeSource === 'kosha' ? 'ಯಕ್ಷಪ್ರಸಂಗಕೋಶ ಪ್ರಸಂಗಪ್ರತಿ' : 'ಪ್ರಸಂಗಪ್ರತಿ'}
+                  {activeSource === 'kosha' ? 'ಯಕ್ಷಪ್ರಸಂಗಕೋಶದ ಪ್ರತಿ' : 'ಪ್ರಸಂಗಪ್ರತಿ'}
                 </div>
               </div>
             </div>
