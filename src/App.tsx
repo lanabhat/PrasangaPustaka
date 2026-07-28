@@ -1,5 +1,6 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { App as CapacitorApp } from '@capacitor/app';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { SidebarProvider } from '@/contexts/SidebarContext';
 import Navbar from '@/components/Navbar/Navbar';
@@ -17,12 +18,37 @@ import EntryDetail from '@/pages/EntryDetail/EntryDetail';
 import Search from '@/pages/Search/Search';
 import WpPost from '@/pages/WpPost/WpPost';
 
+// The Yakshavahini public site opens this app via
+// prasangapratisangraha://<host> (see AndroidManifest.xml's intent-filter).
+// `host` names which screen to land on — only "kosha" is special-cased
+// today, matching that site's Prasanga Kosha link; anything else (including
+// the plain prasangapratisangraha://open used for the default link) goes
+// Home.
+const ROUTE_FOR_HOST: Record<string, string> = {
+  kosha: '/kosha',
+};
+
+const DeepLinkRouter: React.FC = () => {
+  const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const listenerPromise = CapacitorApp.addListener('appUrlOpen', ({ url }) => {
+      const host = new URL(url).host;
+      navigate(ROUTE_FOR_HOST[host] || '/');
+    });
+    return () => { listenerPromise.then((listener) => listener.remove()); };
+  }, [navigate]);
+
+  return null;
+};
+
 const App: React.FC = () => {
   return (
     <ThemeProvider>
     <SidebarProvider>
       <BrowserRouter>
         <div className="min-h-screen flex flex-col" style={{ background: 'var(--ps-bg)' }}>
+          <DeepLinkRouter />
           <Navbar />
           <div className="flex flex-1">
             <Sidebar />

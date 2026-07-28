@@ -22,6 +22,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep links from the Yakshavahini public site: the "host" part
+                 of prasangapratisangraha://<host> tells the app which screen
+                 to open (see the appUrlOpen listener in src/App.tsx) — e.g.
+                 prasangapratisangraha://kosha opens the Prasanga Kosha
+                 screen, any other host falls back to Home. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="prasangapratisangraha" />
+            </intent-filter>
+
         </activity>
 
         <provider
