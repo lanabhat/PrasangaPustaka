@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/contexts/SidebarContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 interface NavItem {
   label: string;
@@ -16,6 +17,7 @@ interface NavItem {
 
 const Sidebar: React.FC = () => {
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const { collapsed, toggleCollapsed, mobileOpen, setMobileOpen } = useSidebar();
 
   const items: NavItem[] = [
@@ -95,7 +97,8 @@ const Sidebar: React.FC = () => {
 
         <div className={cn('p-4', collapsed && 'md:hidden')} style={{ borderTop: '1px solid var(--ps-border)' }}>
           <a href="https://www.yakshavahini.com" target="_blank" rel="noopener">
-            <img src="/yakshavahini.jpg" alt="ಯಕ್ಷವಾಹಿನಿ" className="h-7 w-auto opacity-80 hover:opacity-100 transition-opacity" />
+            <img src={theme === 'dark' ? '/yakshavahini-dark.svg' : '/yakshavahini.svg'} alt="ಯಕ್ಷವಾಹಿನಿ"
+              className="h-7 w-auto opacity-80 hover:opacity-100 transition-opacity" />
           </a>
         </div>
       </aside>

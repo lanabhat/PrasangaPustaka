@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import EntryCard from '@/components/EntryCard/EntryCard';
 import TrendChart from '@/components/TrendChart/TrendChart';
 import Carousel from '@/components/Carousel/Carousel';
+import { useTheme } from '@/contexts/ThemeContext';
 import { fetchStats } from '@/services/api';
 import type { StatsData } from '@/services/api';
 
@@ -50,6 +51,7 @@ function SectionHeading({ title, linkLabel, onLink }: { title: string; linkLabel
 
 const Home: React.FC = () => {
   const { t } = useTranslation();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [stats, setStats] = useState<StatsData | null>(null);
   const [animStats, setAnimStats] = useState({ total: 0, kavis: 0, publishers: 0, kosha: 0 });
@@ -90,13 +92,21 @@ const Home: React.FC = () => {
       {/* ── Hero ───────────────────────────────────────────── */}
       <div style={{ maxWidth: 980, margin: '0 auto', padding: '56px 22px 32px' }}>
         <a href="https://www.yakshavahini.com" target="_blank" rel="noopener" className="block">
-              <img src="/yakshavahini.jpg" alt="ಯಕ್ಷವಾಹಿನಿ"
-                style={{ width: '100%', objectFit: 'contain', background: '#fff', padding: '16px 32px', maxHeight: 120 }} />
+              <img src={theme === 'dark' ? '/yakshavahini-dark.svg' : '/yakshavahini.svg'} alt="ಯಕ್ಷವಾಹಿನಿ"
+                style={{ width: '100%', objectFit: 'contain', padding: '16px 32px', maxHeight: 120 }} />
             </a>
 
         <div className="flex flex-col md:flex-row md:items-center gap-6 md:gap-12">
           {/* Left: badge + title + description */}
           <div className="flex-1 text-center md:text-left">
+            <h1 className="ps-serif" style={{
+              fontWeight: 600, fontSize: 'clamp(28px, 5vw, 48px)',
+              lineHeight: 1.12, letterSpacing: '-.02em', margin: '0 0 18px',
+              color: 'var(--ps-text)',
+            }}>
+              {t('home.title')}
+            </h1>
+
             <div className="mx-auto md:mx-0" style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               background: 'var(--ps-accent-soft)', color: 'var(--ps-accent-text)',
@@ -106,14 +116,6 @@ const Home: React.FC = () => {
             }}>
               {t('home.badge')}
             </div>
-
-            <h1 className="ps-serif" style={{
-              fontWeight: 600, fontSize: 'clamp(28px, 5vw, 48px)',
-              lineHeight: 1.12, letterSpacing: '-.02em', margin: '0 0 18px',
-              color: 'var(--ps-text)',
-            }}>
-              {t('home.title')}
-            </h1>
 
             <p className="kn-serif mx-auto md:mx-0" style={{
               fontSize: 'clamp(15px, 2.5vw, 18px)', lineHeight: 1.6,

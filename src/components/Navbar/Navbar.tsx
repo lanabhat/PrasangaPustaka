@@ -44,19 +44,13 @@ const Navbar: React.FC = () => {
 
         {/* Logo lockup */}
         <Link to="/" className="flex items-center gap-2.5 shrink-0">
-          <div style={{
-            width: 38, height: 38, borderRadius: 11,
-            background: 'var(--ps-grad)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: 'var(--ps-shadow-sm)', flexShrink: 0,
-          }}>
-            <span className="kn-serif" style={{ color: '#fff', fontSize: 22, fontWeight: 700, lineHeight: 1 }}>ಯ</span>
-          </div>
+          <img src={theme === 'dark' ? '/yakshavahini-dark.svg' : '/yakshavahini.svg'} alt="Yakshavahini"
+            style={{ height: 38, width: 'auto', flexShrink: 0 }} />
           <div style={{ lineHeight: 1.1 }} className="hidden sm:block">
-            <div className="ps-serif" style={{ fontWeight: 600, fontSize: 17, letterSpacing: '-0.01em', color: 'var(--ps-text)' }}>
+            <div className="kn-sans" style={{ fontWeight: 600, fontSize: 17, color: 'var(--ps-text)' }}>ಪ್ರತಿಸಂಗ್ರಹ</div>
+            <div className="ps-serif" style={{ fontSize: 11, letterSpacing: '-0.01em', color: 'var(--ps-muted)' }}>
               Pratisangraha
             </div>
-            <div className="kn-sans" style={{ fontSize: 11, color: 'var(--ps-muted)' }}>ಪ್ರತಿಸಂಗ್ರಹ</div>
           </div>
         </Link>
 
