@@ -54,7 +54,7 @@ const Home: React.FC = () => {
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [stats, setStats] = useState<StatsData | null>(null);
-  const [animStats, setAnimStats] = useState({ total: 0, kavis: 0, publishers: 0, kosha: 0 });
+  const [animStats, setAnimStats] = useState({ total: 0, kosha: 0 });
   const [wpPosts, setWpPosts] = useState<WpPost[]>([]);
 
   useEffect(() => {
@@ -62,14 +62,14 @@ const Home: React.FC = () => {
       .then((r) => {
         setStats(r.data);
         // Animate stats count-up
-        const T = { total: r.data.total, kavis: r.data.by_kavi.length, publishers: r.data.by_publisher.length, kosha: r.data.unique_kosha_count };
+        const T = { total: r.data.total, kosha: r.data.unique_kosha_count };
         const dur = 1100, t0 = performance.now();
         const tick = (now: number) => {
           const p = Math.min(1, (now - t0) / dur);
           const e = 1 - Math.pow(1 - p, 3);
           setAnimStats({
-            total: Math.round(T.total * e), kavis: Math.round(T.kavis * e),
-            publishers: Math.round(T.publishers * e), kosha: Math.round(T.kosha * e),
+            total: Math.round(T.total * e),
+            kosha: Math.round(T.kosha * e),
           });
           if (p < 1) requestAnimationFrame(tick);
         };
@@ -171,8 +171,6 @@ const Home: React.FC = () => {
         }}>
           {[
             { value: animStats.total, label: t('home.stats.total') },
-            { value: animStats.kavis, label: t('home.stats.kavis') },
-            { value: animStats.publishers, label: t('home.stats.publishers') },
             { value: animStats.kosha, label: t('home.stats.kosha') },
           ].map((s, i) => (
             <React.Fragment key={s.label}>
